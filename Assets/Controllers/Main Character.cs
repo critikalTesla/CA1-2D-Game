@@ -2,68 +2,92 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Player_Controller : MonoBehaviour
+public class PlayerScript2D : MonoBehaviour
 {
-    Rigidbody2D rigidbody2D;
-   // Animator animator;
-    public int state = 0;
-    public int speed;
-    public int JumpHeight = 10;
-    public bool isJumping;
+    private Rigidbody2D rb;
+    private float HorizontalMove = 0f;
+    private bool FacingRight = true;
+    private float jumpCooldown = 0.2f;
+    private float lastJumpTime;
 
+    [Header("Player Movement Settings")]
+    [Range(0, 10f)] public float speed = 1f;
+    [Range(0, 15f)] public float jumpForce = 8f;
 
+    [Header("Player Animation Settings")]
+    public Animator animator;
+
+    [Space]
+    [Header("Ground Checker Settings")]
+    public bool isGrounded = false;
+    [Range(-5f, 5f)] public float checkGroundOffsetY = -1.8f;
+    [Range(0, 5f)] public float checkGroundRadius = 0.3f;
+    public LayerMask groundLayer; 
 
     void Start()
     {
-    //    animator = GetComponent<Animator>();
-        rigidbody2D = GetComponent<Rigidbody2D>();
-
-  //      animator.SetFloat("Move X", 1);
-   //     animator.SetFloat("Move Y", -1);
-
-       
+        rb = GetComponent<Rigidbody2D>();
     }
 
-    // Update is called once per frame
     void Update()
     {
+        
+        if (isGrounded && Input.GetKeyDown(KeyCode.Space) && Time.time - lastJumpTime > jumpCooldown)
+        {
+            rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+            lastJumpTime = Time.time; 
+        }
 
         
-        Vector2 position = transform.position;
-        float move = Input.GetAxis("Horizontal");
-        position.x= position.x + speed*Time.deltaTime * move;
-        transform.position = position;
+        HorizontalMove = Input.GetAxisRaw("Horizontal") * speed;
+        animator.SetFloat("HorizontalMove", Mathf.Abs(HorizontalMove));
 
-        if (!isJumping && Input.GetKeyDown(KeyCode.Space))
-        {
-            isJumping=true;
-            rigidbody2D.velocity = Vector3.zero;
-            rigidbody2D.AddForce(new Vector2(0, Mathf.Sqrt(-2 * Physics2D.gravity.y * JumpHeight)), ForceMode2D.Impulse);
-        }
+       
+        animator.SetBool("Jumping", rb.velocity.y > 0.1f || !isGrounded);
+
         
-
-        if (move != 0)
+        if (HorizontalMove < 0 && FacingRight)
         {
-            state = move < 0 ? -1 : 1;
-      //      animator.SetFloat("Move X", state);
-        //    animator.SetFloat("Move Y", state);
-            
-
+            Flip();
         }
-        else
+        else if (HorizontalMove > 0 && !FacingRight)
         {
-         //   animator.SetFloat("Move X", 0);
-            
-
+            Flip();
         }
-        
-
     }
 
-    private void OnCollisionEnter2D(Collision2D col)
+    private void FixedUpdate()
     {
-        if (isJumping = true) isJumping = false;
+        
+        Vector2 targetVelocity = new Vector2(HorizontalMove, rb.velocity.y);
+        rb.velocity = targetVelocity;
 
+        
+        CheckGround();
     }
 
+    private void Flip()
+    {
+        FacingRight = !FacingRight;
+        Vector3 theScale = transform.localScale;
+        theScale.x *= -1;
+        transform.localScale = theScale;
+    }
+
+    private void CheckGround()
+    {
+        
+        Collider2D[] colliders = Physics2D.OverlapCircleAll(
+            new Vector2(transform.position.x, transform.position.y + checkGroundOffsetY), 
+            checkGroundRadius, groundLayer);
+
+        isGrounded = colliders.Length > 0;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(new Vector2(transform.position.x, transform.position.y + checkGroundOffsetY), checkGroundRadius);
+    }
 }
