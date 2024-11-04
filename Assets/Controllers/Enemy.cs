@@ -4,34 +4,30 @@ using UnityEngine;
 public class NPCController : MonoBehaviour
 {
     [Header("Patrol Settings")]
-    public Transform[] patrolPoints;   // Точки патрулирования
-    public float patrolSpeed = 2f;     // Скорость патрулирования
-    private int currentPatrolIndex = 0;
-    private bool isPatrolling = true;
+    public Transform leftPatrolPoint;
+    public Transform rightPatrolPoint;
+    public float patrolSpeed = 2f;
+    private bool movingRight = true;
 
     [Header("Chase Settings")]
-    public float chaseSpeed = 3f;      // Скорость преследования
-    public float detectionRange = 5f;  // Радиус обнаружения игрока
-    public float attackRange = 3f;     // Радиус атаки, если игрок находится достаточно близко
+    public float chaseSpeed = 3f;
+    public float detectionRange = 5f;
     private Transform player;
+    private bool isChasing = false;
 
     [Header("Attack Settings")]
     public GameObject projectilePrefab; // Префаб снаряда
-    public Transform firePoint;         // Точка, откуда выпускается снаряд
-    public float projectileSpeed = 5f;
     public float attackCooldown = 1.5f; // Задержка между атаками
-    private float lastAttackTime;
+    private float lastAttackTime;       // Время последней атаки
 
     [Header("Detection Settings")]
-    public LayerMask playerLayer;       // Слой игрока
+    public LayerMask playerLayer;
 
     void Start()
     {
-        // Устанавливаем начальную точку патрулирования
-        currentPatrolIndex = 0;
-        if (patrolPoints.Length > 0)
+        if (leftPatrolPoint != null)
         {
-            transform.position = patrolPoints[currentPatrolIndex].position;
+            transform.position = leftPatrolPoint.position;
         }
     }
 
@@ -39,45 +35,46 @@ public class NPCController : MonoBehaviour
     {
         DetectPlayer();
 
-        if (isPatrolling)
+        if (isChasing)
         {
-            Patrol();
+            ChasePlayer();
+            AttackPlayer();  // Атака во время преследования
         }
         else
         {
-            ChasePlayer();
-            AttackPlayer();
+            Patrol();
         }
     }
 
     private void Patrol()
     {
-        if (patrolPoints.Length == 0) return;
+        if (leftPatrolPoint == null || rightPatrolPoint == null) return;
 
-        // Движение к текущей точке патрулирования
-        Transform targetPoint = patrolPoints[currentPatrolIndex];
-        transform.position = Vector2.MoveTowards(transform.position, targetPoint.position, patrolSpeed * Time.deltaTime);
+        Transform targetPoint = movingRight ? rightPatrolPoint : leftPatrolPoint;
+        transform.position = Vector2.MoveTowards(
+            transform.position,
+            new Vector2(targetPoint.position.x, transform.position.y),
+            patrolSpeed * Time.deltaTime
+        );
 
-        // Переход к следующей точке, если достигли текущей
-        if (Vector2.Distance(transform.position, targetPoint.position) < 0.1f)
+        if (Mathf.Abs(transform.position.x - targetPoint.position.x) < 0.1f)
         {
-            currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Length;
+            movingRight = !movingRight;
         }
     }
 
     private void DetectPlayer()
     {
-        // Проверяем, находится ли игрок в зоне обнаружения
         Collider2D playerCollider = Physics2D.OverlapCircle(transform.position, detectionRange, playerLayer);
         if (playerCollider != null)
         {
             player = playerCollider.transform;
-            isPatrolling = false;
+            isChasing = true;
         }
         else
         {
             player = null;
-            isPatrolling = true;
+            isChasing = false;
         }
     }
 
@@ -85,46 +82,46 @@ public class NPCController : MonoBehaviour
     {
         if (player == null) return;
 
-        // Двигаемся в сторону игрока, если он в пределах зоны обнаружения
-        if (Vector2.Distance(transform.position, player.position) > attackRange)
-        {
-            transform.position = Vector2.MoveTowards(transform.position, player.position, chaseSpeed * Time.deltaTime);
-        }
+        transform.position = Vector2.MoveTowards(
+            transform.position,
+            new Vector2(player.position.x, transform.position.y),
+            chaseSpeed * Time.deltaTime
+        );
     }
 
     private void AttackPlayer()
     {
         if (player == null) return;
 
-        // Поворачиваем NPC в сторону игрока
-        Vector2 direction = (player.position - transform.position).normalized;
-        transform.right = direction;
-
-        // Атака, если игрок в пределах зоны атаки и прошло достаточно времени с момента последней атаки
-        if (Vector2.Distance(transform.position, player.position) <= attackRange && Time.time > lastAttackTime + attackCooldown)
+        // Проверка на интервал времени для атаки
+        if (Time.time > lastAttackTime + attackCooldown)
         {
-            ShootProjectile(direction);
+            // Спавним префаб снаряда
+            SpawnProjectile();
             lastAttackTime = Time.time;
         }
     }
 
-    private void ShootProjectile(Vector2 direction)
+    private void SpawnProjectile()
     {
-        // Создаем снаряд и задаем его начальную скорость
-        GameObject projectile = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
-        Rigidbody2D rb = projectile.GetComponent<Rigidbody2D>();
-        if (rb != null)
-        {
-            rb.velocity = direction * projectileSpeed;
-        }
+        // Спавним снаряд из позиции врага
+        Instantiate(projectilePrefab, transform.position, Quaternion.identity);
     }
 
     private void OnDrawGizmosSelected()
     {
-        // Визуализируем радиусы обнаружения и атаки игрока
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
+
+        if (leftPatrolPoint != null)
+        {
+            Gizmos.color = Color.blue;
+            Gizmos.DrawSphere(leftPatrolPoint.position, 0.2f);
+        }
+        if (rightPatrolPoint != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawSphere(rightPatrolPoint.position, 0.2f);
+        }
     }
 }
