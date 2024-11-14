@@ -12,19 +12,32 @@ public class NPCController : MonoBehaviour
     [Header("Chase Settings")]
     public float chaseSpeed = 3f;
     public float detectionRange = 5f;
+    public float stoppingDistance = 1.5f;
     private Transform player;
     private bool isChasing = false;
 
     [Header("Attack Settings")]
-    public GameObject projectilePrefab; // Префаб снаряда
-    public float attackCooldown = 1.5f; // Задержка между атаками
-    private float lastAttackTime;       // Время последней атаки
+    public GameObject projectilePrefab;
+    public Transform firePoint;
+    public float firePointOffset = 0.5f;
+    public float attackCooldown = 1.5f;
+    private float lastAttackTime;
 
     [Header("Detection Settings")]
     public LayerMask playerLayer;
 
+    // Ссылка на Animator
+    private Animator animator;
+
+    // Флаг, чтобы остановить движение во время атаки
+    private bool isAttacking = false;
+
     void Start()
     {
+        // Подключаем Animator
+        animator = GetComponent<Animator>();
+        
+        // Устанавливаем начальное положение патрулирования
         if (leftPatrolPoint != null)
         {
             transform.position = leftPatrolPoint.position;
@@ -33,16 +46,33 @@ public class NPCController : MonoBehaviour
 
     void Update()
     {
+        // Если мы атакуем, движение запрещено
+        if (isAttacking)
+        {
+            animator.SetBool("isRunning", false); // Останавливаем анимацию бега
+            return; // Не выполняем движение или патрулирование, пока атака идет
+        }
+
+        UpdateFirePointPosition();
         DetectPlayer();
 
         if (isChasing)
         {
             ChasePlayer();
-            AttackPlayer();  // Атака во время преследования
+            AttackPlayer();
         }
         else
         {
             Patrol();
+        }
+    }
+
+    private void UpdateFirePointPosition()
+    {
+        if (firePoint != null)
+        {
+            float direction = movingRight ? 1 : -1;
+            firePoint.localPosition = new Vector3(direction * firePointOffset, 0, 0);
         }
     }
 
@@ -57,6 +87,11 @@ public class NPCController : MonoBehaviour
             patrolSpeed * Time.deltaTime
         );
 
+        // Обновление анимации бега и направления
+        animator.SetBool("isRunning", true);
+        UpdateDirection(targetPoint.position.x - transform.position.x);
+
+        // Переход к другой точке патруля
         if (Mathf.Abs(transform.position.x - targetPoint.position.x) < 0.1f)
         {
             movingRight = !movingRight;
@@ -75,6 +110,7 @@ public class NPCController : MonoBehaviour
         {
             player = null;
             isChasing = false;
+            animator.SetBool("isRunning", false);
         }
     }
 
@@ -82,21 +118,34 @@ public class NPCController : MonoBehaviour
     {
         if (player == null) return;
 
-        transform.position = Vector2.MoveTowards(
-            transform.position,
-            new Vector2(player.position.x, transform.position.y),
-            chaseSpeed * Time.deltaTime
-        );
+        float distanceToPlayer = Vector2.Distance(transform.position, player.position);
+
+        if (distanceToPlayer > stoppingDistance)
+        {
+            transform.position = Vector2.MoveTowards(
+                transform.position,
+                new Vector2(player.position.x, transform.position.y),
+                chaseSpeed * Time.deltaTime
+            );
+
+            movingRight = player.position.x > transform.position.x;
+            animator.SetBool("isRunning", true);
+            UpdateDirection(player.position.x - transform.position.x);
+        }
+        else
+        {
+            animator.SetBool("isRunning", false);
+        }
     }
 
     private void AttackPlayer()
     {
         if (player == null) return;
 
-        // Проверка на интервал времени для атаки
         if (Time.time > lastAttackTime + attackCooldown)
         {
-            // Спавним префаб снаряда
+            isAttacking = true; // Устанавливаем флаг атаки
+            animator.SetTrigger("isAttacking");
             SpawnProjectile();
             lastAttackTime = Time.time;
         }
@@ -104,14 +153,27 @@ public class NPCController : MonoBehaviour
 
     private void SpawnProjectile()
     {
-        // Спавним снаряд из позиции врага
-        Instantiate(projectilePrefab, transform.position, Quaternion.identity);
+        Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
+        isAttacking = false; // Сбрасываем флаг атаки сразу после выпуска снаряда
+    }
+
+    private void UpdateDirection(float direction)
+    {
+        // Отражаем врага по горизонтали в зависимости от направления движения
+        if (direction != 0)
+        {
+            Vector3 localScale = transform.localScale;
+            localScale.x = Mathf.Abs(localScale.x) * (direction > 0 ? 1 : -1);
+            transform.localScale = localScale;
+        }
     }
 
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
+        Gizmos.color = Color.magenta;
+        Gizmos.DrawWireSphere(transform.position, stoppingDistance);
 
         if (leftPatrolPoint != null)
         {

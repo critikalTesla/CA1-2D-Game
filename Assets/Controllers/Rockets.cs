@@ -5,7 +5,6 @@ public class ProjectileController : MonoBehaviour
     public float speed = 5f;           // Скорость снаряда
     public float lifetime = 3f;        // Время, через которое снаряд уничтожится, если не попадет в цель
     private Transform player;          // Ссылка на игрока
-    private Vector2 targetDirection;   // Направление к игроку
 
     void Start()
     {
@@ -14,8 +13,6 @@ public class ProjectileController : MonoBehaviour
         if (playerObject != null)
         {
             player = playerObject.transform;
-            // Рассчитываем начальное направление к игроку
-            targetDirection = (player.position - transform.position).normalized;
         }
 
         // Уничтожить снаряд через заданное время, если он не попадет в цель
@@ -24,22 +21,21 @@ public class ProjectileController : MonoBehaviour
 
     void Update()
     {
-        // Если игрок существует, обновляем направление снаряда к текущему положению игрока
         if (player != null)
         {
-            targetDirection = (player.position - transform.position).normalized;
-        }
+            // Обновляем направление и поворачиваем снаряд к игроку
+            Vector2 direction = (player.position - transform.position).normalized;
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            transform.rotation = Quaternion.Euler(0, 0, angle);
 
-        // Двигаем снаряд в направлении игрока
-        transform.position += (Vector3)targetDirection * speed * Time.deltaTime;
+            // Двигаем снаряд в направлении игрока
+            transform.position += (Vector3)direction * speed * Time.deltaTime;
+        }
     }
 
     void OnTriggerEnter2D(Collider2D collision)
     {
-        // Проверяем, если снаряд столкнулся с объектом, уничтожаем его
-        if (collision.gameObject.CompareTag("Player") || collision.gameObject.CompareTag("Obstacle"))
-        {
-            Destroy(gameObject);
-        }
+        // Уничтожаем снаряд при столкновении с любым объектом
+        Destroy(gameObject);
     }
 }
