@@ -1926,12 +1926,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 81e9dc345c654c741a55f068d6aa649a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  maxHealth: 100
   leftPatrolPoint: {fileID: 1844857502}
   rightPatrolPoint: {fileID: 1823567949}
   patrolSpeed: 3
-  chaseSpeed: 2
-  detectionRange: 4
-  stoppingDistance: 2
+  chaseSpeed: 3
+  detectionRange: 5
+  stoppingDistance: 3
   projectilePrefab: {fileID: 6159086964633610724, guid: 774806eec59ef49499279df12d02dadb, type: 3}
   firePoint: {fileID: 739008338}
   firePointOffset: 1
@@ -2566,7 +2567,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: -1
   m_Sprite: {fileID: 21300000, guid: 66e5f79af3fcb9a40a37a611c76a7a6d, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 1
@@ -2623,6 +2624,37 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 222402253}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1247997286
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1247997287}
+  m_Layer: 0
+  m_Name: FirePointPlayer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1247997287
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1247997286}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1843847335}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1305256486
 GameObject:
@@ -2771,7 +2803,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: -1
   m_Sprite: {fileID: 21300000, guid: 66e5f79af3fcb9a40a37a611c76a7a6d, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -2855,7 +2887,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: -1
   m_Sprite: {fileID: 21300000, guid: 66e5f79af3fcb9a40a37a611c76a7a6d, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 1
@@ -3019,7 +3051,8 @@ Transform:
   m_LocalPosition: {x: -5.94, y: -2.523, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1247997287}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1843847336
@@ -3043,6 +3076,11 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
+  projectilePrefab: {fileID: 1995332553744485516, guid: fa7cd984b2d487343816e5515491d434, type: 3}
+  firePoint: {fileID: 1247997287}
+  fireCooldown: 0.5
+  dashDistance: 10
+  dashCooldown: 5
 --- !u!50 &1843847338
 Rigidbody2D:
   serializedVersion: 4
@@ -3059,7 +3097,7 @@ Rigidbody2D:
   m_LinearDrag: 0
   m_AngularDrag: 0.05
   m_GravityScale: 2
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: 86ea4a97d652555428dc4402fd5d67ce, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -3414,7 +3452,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: -1
   m_Sprite: {fileID: 21300000, guid: 66e5f79af3fcb9a40a37a611c76a7a6d, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0

@@ -1,8 +1,11 @@
-using System.Collections;
 using UnityEngine;
 
 public class NPCController : MonoBehaviour
 {
+    [Header("Health Settings")]
+    public int maxHealth = 100;        // Максимальное здоровье врага
+    private int currentHealth;         // Текущее здоровье врага
+
     [Header("Patrol Settings")]
     public Transform leftPatrolPoint;
     public Transform rightPatrolPoint;
@@ -26,18 +29,13 @@ public class NPCController : MonoBehaviour
     [Header("Detection Settings")]
     public LayerMask playerLayer;
 
-    // Ссылка на Animator
     private Animator animator;
-
-    // Флаг, чтобы остановить движение во время атаки
     private bool isAttacking = false;
 
     void Start()
     {
-        // Подключаем Animator
         animator = GetComponent<Animator>();
-        
-        // Устанавливаем начальное положение патрулирования
+        currentHealth = maxHealth; // Устанавливаем начальное здоровье
         if (leftPatrolPoint != null)
         {
             transform.position = leftPatrolPoint.position;
@@ -46,11 +44,10 @@ public class NPCController : MonoBehaviour
 
     void Update()
     {
-        // Если мы атакуем, движение запрещено
         if (isAttacking)
         {
-            animator.SetBool("isRunning", false); // Останавливаем анимацию бега
-            return; // Не выполняем движение или патрулирование, пока атака идет
+            animator.SetBool("isRunning", false);
+            return;
         }
 
         UpdateFirePointPosition();
@@ -87,11 +84,9 @@ public class NPCController : MonoBehaviour
             patrolSpeed * Time.deltaTime
         );
 
-        // Обновление анимации бега и направления
         animator.SetBool("isRunning", true);
         UpdateDirection(targetPoint.position.x - transform.position.x);
 
-        // Переход к другой точке патруля
         if (Mathf.Abs(transform.position.x - targetPoint.position.x) < 0.1f)
         {
             movingRight = !movingRight;
@@ -144,7 +139,7 @@ public class NPCController : MonoBehaviour
 
         if (Time.time > lastAttackTime + attackCooldown)
         {
-            isAttacking = true; // Устанавливаем флаг атаки
+            isAttacking = true;
             animator.SetTrigger("isAttacking");
             SpawnProjectile();
             lastAttackTime = Time.time;
@@ -154,17 +149,44 @@ public class NPCController : MonoBehaviour
     private void SpawnProjectile()
     {
         Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
-        isAttacking = false; // Сбрасываем флаг атаки сразу после выпуска снаряда
+        isAttacking = false;
     }
 
     private void UpdateDirection(float direction)
     {
-        // Отражаем врага по горизонтали в зависимости от направления движения
         if (direction != 0)
         {
             Vector3 localScale = transform.localScale;
             localScale.x = Mathf.Abs(localScale.x) * (direction > 0 ? 1 : -1);
             transform.localScale = localScale;
+        }
+    }
+
+    // Метод получения урона
+    public void TakeDamage(int damage)
+    {
+        currentHealth -= damage;
+        
+        // Проверка на смерть
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+    }
+
+    private void Die()
+    {
+        // Здесь можно добавить анимацию смерти или эффекты
+        Destroy(gameObject); // Уничтожаем объект врага
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        // Проверка на столкновение с объектом, наносящим урон (например, снаряд)
+        if (collision.gameObject.CompareTag("Projectile"))
+        {
+            TakeDamage(10); // Получаем урон в размере 10 единиц (или другое значение)
+            Destroy(collision.gameObject); // Уничтожаем снаряд
         }
     }
 
