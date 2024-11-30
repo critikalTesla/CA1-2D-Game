@@ -1,10 +1,11 @@
+using System.Collections;
 using UnityEngine;
 
 public class NPCController : MonoBehaviour
 {
     [Header("Health Settings")]
-    public int maxHealth = 100;        // Максимальное здоровье врага
-    private int currentHealth;         // Текущее здоровье врага
+    public int maxHealth = 100;
+    private int currentHealth;
 
     [Header("Patrol Settings")]
     public Transform leftPatrolPoint;
@@ -29,13 +30,18 @@ public class NPCController : MonoBehaviour
     [Header("Detection Settings")]
     public LayerMask playerLayer;
 
+    [Header("Attack Zone Timeout Settings")]
+    public float attackZoneTimeout = 2f; // Time before the NPC stops chasing the player
+    private float lastSeenPlayerTime;
+
     private Animator animator;
     private bool isAttacking = false;
 
     void Start()
     {
         animator = GetComponent<Animator>();
-        currentHealth = maxHealth; // Устанавливаем начальное здоровье
+        currentHealth = maxHealth;
+
         if (leftPatrolPoint != null)
         {
             transform.position = leftPatrolPoint.position;
@@ -44,32 +50,20 @@ public class NPCController : MonoBehaviour
 
     void Update()
     {
-        if (isAttacking)
-        {
-            animator.SetBool("isRunning", false);
-            return;
-        }
+        if (isAttacking) return; // Skip actions if attacking
 
-        UpdateFirePointPosition();
-        DetectPlayer();
+        DetectPlayer(); // Check for player presence
 
         if (isChasing)
         {
+            lastSeenPlayerTime = Time.time; // Reset the timer when the player is detected
             ChasePlayer();
-            AttackPlayer();
+            if (CanAttackPlayer()) AttackPlayer();
         }
-        else
+        else if (Time.time - lastSeenPlayerTime > attackZoneTimeout)
         {
+            // Return to patrolling if the player has been absent for too long
             Patrol();
-        }
-    }
-
-    private void UpdateFirePointPosition()
-    {
-        if (firePoint != null)
-        {
-            float direction = movingRight ? 1 : -1;
-            firePoint.localPosition = new Vector3(direction * firePointOffset, 0, 0);
         }
     }
 
@@ -78,15 +72,19 @@ public class NPCController : MonoBehaviour
         if (leftPatrolPoint == null || rightPatrolPoint == null) return;
 
         Transform targetPoint = movingRight ? rightPatrolPoint : leftPatrolPoint;
+
+        // Move towards the patrol point
         transform.position = Vector2.MoveTowards(
             transform.position,
             new Vector2(targetPoint.position.x, transform.position.y),
             patrolSpeed * Time.deltaTime
         );
 
+        // Enable running animation
         animator.SetBool("isRunning", true);
         UpdateDirection(targetPoint.position.x - transform.position.x);
 
+        // Change direction when reaching the patrol point
         if (Mathf.Abs(transform.position.x - targetPoint.position.x) < 0.1f)
         {
             movingRight = !movingRight;
@@ -96,6 +94,7 @@ public class NPCController : MonoBehaviour
     private void DetectPlayer()
     {
         Collider2D playerCollider = Physics2D.OverlapCircle(transform.position, detectionRange, playerLayer);
+
         if (playerCollider != null)
         {
             player = playerCollider.transform;
@@ -105,7 +104,6 @@ public class NPCController : MonoBehaviour
         {
             player = null;
             isChasing = false;
-            animator.SetBool("isRunning", false);
         }
     }
 
@@ -117,6 +115,7 @@ public class NPCController : MonoBehaviour
 
         if (distanceToPlayer > stoppingDistance)
         {
+            // Move towards the player
             transform.position = Vector2.MoveTowards(
                 transform.position,
                 new Vector2(player.position.x, transform.position.y),
@@ -124,32 +123,45 @@ public class NPCController : MonoBehaviour
             );
 
             movingRight = player.position.x > transform.position.x;
-            animator.SetBool("isRunning", true);
+            animator.SetBool("isRunning", true); // Enable running animation
             UpdateDirection(player.position.x - transform.position.x);
         }
         else
         {
-            animator.SetBool("isRunning", false);
+            animator.SetBool("isRunning", false); // Stop running animation
         }
+    }
+
+    private bool CanAttackPlayer()
+    {
+        return player != null && Time.time > lastAttackTime + attackCooldown;
     }
 
     private void AttackPlayer()
     {
         if (player == null) return;
 
-        if (Time.time > lastAttackTime + attackCooldown)
-        {
-            isAttacking = true;
-            animator.SetTrigger("isAttacking");
-            SpawnProjectile();
-            lastAttackTime = Time.time;
-        }
+        isAttacking = true;
+        animator.SetTrigger("isAttacking");
+
+        // Launch the projectile after a delay to sync with the animation
+        StartCoroutine(PerformAttack());
+        lastAttackTime = Time.time;
+    }
+
+    private IEnumerator PerformAttack()
+    {
+        yield return new WaitForSeconds(0.5f); // Delay to sync with animation
+        SpawnProjectile();
+        isAttacking = false; // Allow other actions
     }
 
     private void SpawnProjectile()
     {
-        Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
-        isAttacking = false;
+        if (projectilePrefab != null && firePoint != null)
+        {
+            Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
+        }
     }
 
     private void UpdateDirection(float direction)
@@ -162,12 +174,10 @@ public class NPCController : MonoBehaviour
         }
     }
 
-    // Метод получения урона
     public void TakeDamage(int damage)
     {
         currentHealth -= damage;
-        
-        // Проверка на смерть
+
         if (currentHealth <= 0)
         {
             Die();
@@ -176,18 +186,8 @@ public class NPCController : MonoBehaviour
 
     private void Die()
     {
-        // Здесь можно добавить анимацию смерти или эффекты
-        Destroy(gameObject); // Уничтожаем объект врага
-    }
-
-    private void OnTriggerEnter2D(Collider2D collision)
-    {
-        // Проверка на столкновение с объектом, наносящим урон (например, снаряд)
-        if (collision.gameObject.CompareTag("Projectile"))
-        {
-            TakeDamage(10); // Получаем урон в размере 10 единиц (или другое значение)
-            Destroy(collision.gameObject); // Уничтожаем снаряд
-        }
+        animator.SetTrigger("Die");
+        Destroy(gameObject, 1f); // Destroy the object after a delay
     }
 
     private void OnDrawGizmosSelected()
